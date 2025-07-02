@@ -1,20 +1,40 @@
+# 🐙🤖 GitHub PR Bot (Powered by Temporal)
 
-## Problem Statement
+![Python 3.8+](https://img.shields.io/badge/Python-3.8%2B-blue?logo=python)
+![Temporal](https://img.shields.io/badge/Temporal-Workflow-lightgrey?logo=temporal)
+![License](https://img.shields.io/github/license/abhishekmishragithub/temporal-task)
 
-Traditional automation scripts for GitHub operations are often brittle and leave orphaned resources when failures occur. Consider a script that:
-1. Clones a repository to a temporary directory
-2. Creates a new branch
-3. Makes changes and commits them
-4. Pushes the branch to GitHub
-5. Creates a pull request
-6. Cleans up the temporary directory
+Automate branch creation ➜ commits ➜ pushes ➜ **Pull Requests**;  and guarantee cleanup even when GitHub rate limits or your network flakes out.
+Temporal handles retries & compensation so you don’t have to babysit brittle shell scripts.
 
-If this script fails at step 4 (pushing to GitHub due to rate limiting), the temporary directory remains on disk, and any partial state is lost. Running the script again creates duplicate work and more orphaned resources. This is a maintenance nightmare and can quickly fill up disk space.
+---
 
-## Solution with Temporal
+## ❗ Problem
 
-Using Temporal we can solve this issue. We implement Temporal such a way that it will guarantee that cleanup operations always run, regardless of whether the main workflow succeeds or fails.
+Classic one-shot scripts look like this:
 
+1. Clone repo into `/tmp`
+2. Create branch
+3. Commit changes
+4. Push branch
+5. Open PR
+6. Delete `/tmp` directory
+
+If step 4 fails (e.g due to rate limiting) you’re left with orphaned temp dirs **and** half-done state on GitHub. Re-running just makes more mess.
+
+---
+
+## 🛠️ Solution (Temporal FTW)
+
+Temporal workflows:
+
+- **Retry** failed activities with backoff  
+- **Guarantee** that “finally” cleanup runs  
+- **Record** every attempt ( and is searchable in UI)  
+
+The workflow retries `push_changes` twice, then succeeds on the 3rd try, and _always_ deletes the temp repo directory afterward.
+
+---
 
 ## Setup Instructions
 
@@ -44,25 +64,25 @@ Using Temporal we can solve this issue. We implement Temporal such a way that it
 ### 3. Set Up Python Environment
 
 ```bash
-# Clone this repository
+# clone this repository
 git clone https://github.com/abhishekmishragithub/temporal-task.git
-cd github-pr-bot
+cd temporal-task
 
-# Create and activate virtual environment
+# create and activate virtual environment
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
+# install dependencies
 pip install -r requirements.txt
 ```
 
 ### 4. Start Temporal Server
 
 ```bash
-# Start Temporal using Docker Compose
+# start Temporal using docker compose
 docker-compose up -d
 
-# Verify Temporal is running
+# verify Temporal is running
 # Open http://localhost:8080 in your browser
 ```
 
