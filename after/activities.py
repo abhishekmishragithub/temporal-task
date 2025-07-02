@@ -64,12 +64,8 @@ async def apply_fix_and_commit(local_repo_path: str, issue_number: int):
     activity.logger.info(f"Applying fix for issue #{issue_number}")
 
     readme_path = os.path.join(local_repo_path, "README.md")
-
-    # Apply the fix
     with open(readme_path, 'a') as f:
         f.write(f"\n\nFixed by PR Bot in response to issue #{issue_number}\n")
-
-    # Commit changes
     repo = Repo(local_repo_path)
     repo.index.add(["README.md"])
     repo.index.commit(f"Fix issue #{issue_number}")
@@ -82,7 +78,7 @@ async def push_changes(local_repo_path: str, issue_number: int):
     """Push changes to remote repository."""
     info = activity.info()
 
-    # Simulate failures for the first 2 attempts to demonstrate retry
+    # simulate failures for the first 2 attempts (to show retry)
     if info.attempt < 3:
         activity.logger.warning(f"Simulating push failure (attempt {info.attempt})")
         raise ApplicationError("Simulated GitHub API rate limit")
@@ -112,7 +108,6 @@ async def create_pull_request(repo_info: RepoInfo, issue_number: int) -> dict:
         "Authorization": f"token {token}",
         "Accept": "application/vnd.github.v3+json"
     }
-
     branch_name = f"fix-issue-{issue_number}"
     data = {
         "title": f"Fix issue #{issue_number}",
@@ -130,7 +125,6 @@ async def create_pull_request(repo_info: RepoInfo, issue_number: int) -> dict:
 
     pr_data = response.json()
     pr_url = pr_data["html_url"]
-
     activity.logger.info(f"Pull request created: {pr_url}")
     return {"url": pr_url}
 

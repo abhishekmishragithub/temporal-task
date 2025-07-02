@@ -47,7 +47,7 @@ The workflow retries `push_changes` twice, then succeeds on the 3rd try, and _al
 
 ### 1. Create a Target Repository
 
-1. Go to GitHub and create a new public repository
+1. Go to GitHub and create a new public repository (for this demo i have [abhishekmishragithub/all-things-gh-bot-test](https://github.com/abhishekmishragithub/all-things-gh-bot-test))
 2. Add a `README.md` file with some initial content
 3. Create an issue in the repository (e.g., "Add bot signature to README")
 4. Note the issue URL (e.g., `https://github.com/yourusername/test-repo/issues/1`)
@@ -146,5 +146,5 @@ python after/start_workflow.py https://github.com/yourusername/test-repo/issues/
    - Even if the workflow failed, cleanup would have run
 
 4. **Check GitHub**:
-   - A new PR should be created that references the issue
+   - A new PR should be created that references the issue (for this demo [abhishekmishragithub/all-things-gh-bot-test](https://github.com/abhishekmishragithub/all-things-gh-bot-test))
    - The PR description includes "Closes #1" to auto-close the issue when merged

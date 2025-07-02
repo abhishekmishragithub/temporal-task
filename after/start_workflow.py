@@ -10,7 +10,6 @@ async def main():
     """Start a GitHub PR Bot workflow."""
     parser = argparse.ArgumentParser(description="Start GitHub PR Bot workflow")
     parser.add_argument("issue_url", help="GitHub issue URL")
-
     args = parser.parse_args()
 
     if not os.environ.get("GITHUB_TOKEN"):

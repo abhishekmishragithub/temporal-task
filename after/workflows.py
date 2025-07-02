@@ -7,7 +7,7 @@ from shared import BotInput, WorkflowResult, RepoInfo, PRDetails
 
 @workflow.defn
 class GitHubPRWorkflow:
-    """Workflow that orchestrates the PR creation process."""
+    """Workflow that orchestrates the PR creation."""
 
     @workflow.run
     async def run(self, input: BotInput) -> WorkflowResult:
@@ -40,7 +40,7 @@ class GitHubPRWorkflow:
                 start_to_close_timeout=timedelta(seconds=30)
             )
 
-            # retry  for flaky operations
+            # retry for flaky operations
             retry_policy = RetryPolicy(
                 maximum_attempts=5,
                 initial_interval=timedelta(seconds=1),
