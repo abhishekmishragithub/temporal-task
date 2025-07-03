@@ -10,7 +10,7 @@ An AI agent that autonomously fixes issues in a GitHub repository. Simply provid
 
 ## Demo: From Issue to Pull Request
 
-The agent takes a GitHub issue as input and automatically generates a pull request with the fix.
+The agent takes a GitHub issue as input and automatically generates a pull request with the fix. [This repo](https://github.com/abhishekmishragithub/all-things-gh-bot-test) was my test repo for the demo.
 
 *(Note: For this demo, the agent is configured to fix issues in the `README.md` file. See "Current Scope" below for more details.)*
 
