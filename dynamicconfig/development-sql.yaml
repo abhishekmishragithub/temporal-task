@@ -1,4 +1,3 @@
-# Minimal config for development
 limit.maxIDLength:
   - value: 255
     constraints: {}
