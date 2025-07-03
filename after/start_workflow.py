@@ -71,11 +71,21 @@ async def main() -> None:
 
     # validate gitHub token
     github_token = os.environ.get("GITHUB_TOKEN")
+    gemini_api_key = os.environ.get("GEMINI_API_KEY")
     if not github_token:
         logger.error(
             "GitHub token not found",
             extra={
                 "required_env_var": "GITHUB_TOKEN",
+            },
+        )
+        sys.exit(1)
+
+    if not gemini_api_key:
+        logger.error(
+            "Gemini API Key not found",
+            extra={
+                "required_env_var": "GEMINI_API_KEY",
             },
         )
         sys.exit(1)

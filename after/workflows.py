@@ -41,6 +41,13 @@ class GitHubPRWorkflow:
         clone_result: Optional[CloneResult] = None
         cleanup_result: Optional[CleanupResult] = None
 
+        # default_retry_policy = RetryPolicy(maximum_attempts=3, backoff_coefficient=2.0)
+        long_retry_policy = RetryPolicy(
+            maximum_attempts=5,
+            maximum_interval=timedelta(seconds=60),
+            backoff_coefficient=2.0,
+        )
+
         try:
             # step 1: parse the issue URL and validate inputs
             parsed_issue = await workflow.execute_activity_method(
@@ -65,7 +72,29 @@ class GitHubPRWorkflow:
                 },
             )
 
-            # step 2: clone repository and create branch
+            # step 2: get issue details -- agentic one
+            issue_details = await workflow.execute_activity_method(
+                GitHubActivities.get_issue_details,
+                args=[parsed_issue.repo_info, parsed_issue.issue_info.number],
+                start_to_close_timeout=timedelta(minutes=1),
+                retry_policy=RetryPolicy(
+                    maximum_attempts=3,
+                    initial_interval=timedelta(seconds=1),
+                    maximum_interval=timedelta(seconds=5),
+                    backoff_coefficient=2.0,
+                    non_retryable_error_types=["ApplicationError"],
+                ),
+            )
+
+            workflow.logger.info(
+                "Successfully obtained issue details",
+                extra={
+                    "issue_title": issue_details.title,
+                    "issue_number": issue_details.number,
+                },
+            )
+
+            # step 3: clone repository and create branch
             clone_result = await workflow.execute_activity_method(
                 GitHubActivities.clone_repo_and_create_branch,
                 args=[parsed_issue.repo_info, parsed_issue.issue_info.number],
@@ -90,49 +119,67 @@ class GitHubPRWorkflow:
                 },
             )
 
-            # step 3: apply fix and commit changes
+            # step 4: generate fix with AI
+            ai_fix_result = await workflow.execute_activity_method(
+                GitHubActivities.generate_fix_with_ai,
+                args=[issue_details, clone_result],
+                start_to_close_timeout=timedelta(minutes=3),
+                retry_policy=RetryPolicy(
+                    maximum_attempts=3,
+                    initial_interval=timedelta(seconds=1),
+                    maximum_interval=timedelta(seconds=5),
+                    backoff_coefficient=2.0,
+                    non_retryable_error_types=["ApplicationError"],
+                ),
+            )
+
+            workflow.logger.info(
+                "Model generated fix for the issue",
+                extra={
+                    "edited_file": ai_fix_result.file_to_edit,
+                    "commit_message": ai_fix_result.commit_message,
+                },
+            )
+
+            # step 5: apply fix and commit changes
             commit_result = await workflow.execute_activity_method(
                 GitHubActivities.apply_fix_and_commit,
-                args=[clone_result, parsed_issue.issue_info.number],
+                args=[clone_result, ai_fix_result],
                 start_to_close_timeout=timedelta(minutes=2),
                 retry_policy=RetryPolicy(
                     maximum_attempts=3,
                     initial_interval=timedelta(seconds=1),
                     maximum_interval=timedelta(seconds=5),
                     backoff_coefficient=2.0,
+                    non_retryable_error_types=["ApplicationError"],
                 ),
             )
 
             workflow.logger.info(
-                "Fix applied and changes committed",
+                "Applied fix to the issue",
                 extra={
                     "commit_hash": commit_result.commit_hash,
                     "commit_message": commit_result.commit_message,
                 },
             )
 
-            # step 4: push changes with aggressive retry for network issues
+            # step 6: push changes
             push_result = await workflow.execute_activity_method(
                 GitHubActivities.push_changes,
                 args=[clone_result, commit_result],
                 start_to_close_timeout=timedelta(minutes=3),
-                retry_policy=RetryPolicy(
-                    maximum_attempts=5,
-                    initial_interval=timedelta(seconds=1),
-                    maximum_interval=timedelta(seconds=30),
-                    backoff_coefficient=2.0,
-                ),
+                retry_policy=long_retry_policy,
             )
 
             workflow.logger.info(
                 "Changes pushed successfully",
                 extra={
-                    "branch_name": push_result.branch_name,
-                    "pushed_commits": push_result.pushed_commits,
+                    "pushed_branch_name": push_result.branch_name,
+                    "pushed_commit_message": push_result.pushed_commits,
                 },
             )
 
-            # step 5: create pull request with retry for API rate limits
+            # step 7: create pull request with retry for API rate limits
             pull_request_result = await workflow.execute_activity_method(
                 GitHubActivities.create_pull_request,
                 args=[
@@ -142,12 +189,7 @@ class GitHubPRWorkflow:
                     push_result,
                 ],
                 start_to_close_timeout=timedelta(minutes=2),
-                retry_policy=RetryPolicy(
-                    maximum_attempts=5,
-                    initial_interval=timedelta(seconds=2),
-                    maximum_interval=timedelta(seconds=60),
-                    backoff_coefficient=2.0,
-                ),
+                retry_policy=long_retry_policy,
             )
 
             workflow.logger.info(

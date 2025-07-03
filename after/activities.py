@@ -1,11 +1,13 @@
 import logging
 import os
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 from urllib.parse import urlparse
 
 from shared import (
+    AIGeneratedFixResult,
     CleanupResult,
     CloneResult,
     CommitResult,
@@ -81,6 +83,133 @@ class GitHubActivities:
         return ParsedIssueResult(repo_info=repo_info, issue_info=issue_info)
 
     @activity.defn
+    async def get_issue_details(
+        self, repo_info: RepoInfo, issue_number: int
+    ) -> IssueInfo:
+        """Fetch issue details (title, body) from GitHub."""
+        import requests
+
+        github_token = os.environ.get("GITHUB_TOKEN")
+        if not github_token:
+            logger.error(
+                "GitHub token not found",
+                extra={
+                    "required_env_var": "GITHUB_TOKEN",
+                },
+            )
+            sys.exit(1)
+        api_url = (
+            f"https://api.github.com/repos/{repo_info.full_name}/issues/{issue_number}"
+        )
+        headers = {
+            "Authorization": f"token {github_token}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+        try:
+            response = requests.get(api_url, headers=headers, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+            activity.logger.info(
+                "Successfully obtained issue details",
+                extra={
+                    "issue_title": data["title"],
+                    "issue_number": issue_number,
+                },
+            )
+            return IssueInfo(
+                number=issue_number, title=data["title"], body=data["body"]
+            )
+        except requests.RequestException as e:
+            raise ApplicationError(
+                f"Failed to fetch issue details: {e}", non_retryable=True
+            )
+
+    @activity.defn
+    async def generate_fix_with_ai(
+        self, issue_info: IssueInfo, clone_result: CloneResult
+    ) -> AIGeneratedFixResult:
+        """Generate a fix for the issue using an AI model."""
+        from google import genai  # type: ignore [attr-defined]
+
+        gemini_api_key = os.environ.get("GEMINI_API_KEY")
+        if not gemini_api_key:
+            logger.error(
+                "Gemini API Key not found",
+                extra={
+                    "required_env_var": "GEMINI_API_KEY",
+                },
+            )
+            raise ApplicationError("GEMINI_API_KEY not set", non_retryable=True)
+
+        client = genai.Client(api_key=gemini_api_key)
+        # for this example, we'll assume the fix is always in the README.md
+        file_to_edit = "README.md"
+        file_path = clone_result.local_path / file_to_edit
+
+        if not file_path.exists():
+            logger.error(
+                f"{file_to_edit} not found",
+                extra={
+                    "file_name": file_to_edit,
+                },
+            )
+            raise ApplicationError(
+                f"{file_to_edit} not found in repository", non_retryable=True
+            )
+
+        with file_path.open("r", encoding="utf-8") as f:
+            original_content = f.read()
+
+        # model = self.client.models.get("gemini-2.5-flash")
+        prompt = f"""
+        You are an expert programmer tasked with fixing a GitHub issue.
+        Based on the issue details below, please provide the updated file content.
+
+        Issue Title: {issue_info.title}
+        Issue Body: {issue_info.body}
+
+        Here is the current content of the file to be fixed (`{file_to_edit}`):
+        ---
+        {original_content}
+        ---
+
+        Please provide the full, updated content for the file `{file_to_edit}` that resolves the issue.
+        Your response should ONLY contain the new file content, with no other text, comments, or explanations.
+        """
+        model_name = "gemini-2.5-flash"
+        activity.logger.info(f"Requesting fix from model: {model_name}")
+        try:
+            # client.aio.models.generate_content for the async call.
+            response = await client.aio.models.generate_content(
+                model=model_name,
+                contents=prompt,
+            )
+            new_content = response.text.strip()
+            if not new_content:
+                activity.logger.error(
+                    "AI model returned an empty response.", extra={"model": model_name}
+                )
+                raise ApplicationError(
+                    "AI model returned an empty response.", non_retryable=False
+                )
+        except Exception as e:
+            activity.logger.error(
+                "Failed to generate content from Gemini API.", extra={"error": str(e)}
+            )
+            raise ApplicationError(f"Gemini API call failed: {e}") from e
+
+        commit_message = f"fix: {issue_info.title}\n\nThis AI-generated commit addresses the issue described in the title.\n\nCloses #{issue_info.number}"
+        activity.logger.info(
+            "Successfully generated AI fix.", extra={"file_edited": file_to_edit}
+        )
+
+        return AIGeneratedFixResult(
+            file_to_edit=file_to_edit,
+            new_content=new_content,
+            commit_message=commit_message,
+        )
+
+    @activity.defn
     async def clone_repo_and_create_branch(
         self, repo_info: RepoInfo, issue_number: int
     ) -> CloneResult:
@@ -149,50 +278,43 @@ class GitHubActivities:
 
     @activity.defn
     async def apply_fix_and_commit(
-        self, clone_result: CloneResult, issue_number: int
+        self, clone_result: CloneResult, fix_result: AIGeneratedFixResult
     ) -> CommitResult:
-        """Apply fix and commit changes."""
+        """Apply AI-generated fix and commit changes."""
         from git import Repo
 
         activity.logger.info(
             "Applying fix for issue",
             extra={
-                "issue_number": issue_number,
                 "local_path": str(clone_result.local_path),
                 "branch_name": clone_result.branch_name,
             },
         )
-
-        readme_path = clone_result.local_path / "README.md"
-
         try:
-            with readme_path.open("a", encoding="utf-8") as f:
-                f.write(f"\n\nFixed by PR Bot in response to issue #{issue_number}\n")
-
             repo = Repo(str(clone_result.local_path))
-            repo.index.add(["README.md"])
+            file_path = clone_result.local_path / fix_result.file_to_edit
 
-            commit_message = f"Fix issue #{issue_number}"
-            commit = repo.index.commit(commit_message)
+            with file_path.open("w", encoding="utf-8") as f:
+                f.write(fix_result.new_content)
+
+            repo.index.add([fix_result.file_to_edit])
+            commit = repo.index.commit(fix_result.commit_message)
 
             activity.logger.info(
                 "Changes committed successfully",
                 extra={
                     "commit_hash": commit.hexsha,
-                    "commit_message": commit_message,
-                    "issue_number": issue_number,
+                    "commit_message": fix_result.commit_message,
                 },
             )
 
             return CommitResult(
-                commit_hash=commit.hexsha, commit_message=commit_message
+                commit_hash=commit.hexsha, commit_message=fix_result.commit_message
             )
-
         except Exception as e:
             activity.logger.error(
                 "Failed to apply fix and commit",
                 extra={
-                    "issue_number": issue_number,
                     "local_path": str(clone_result.local_path),
                     "error": str(e),
                 },
@@ -284,7 +406,8 @@ class GitHubActivities:
         }
 
         title = f"Fix issue #{issue_number}"
-        body = f"This PR fixes issue #{issue_number}\n\nCloses #{issue_number}"
+        # body = f"This PR fixes issue #{issue_number}\n\nCloses #{issue_number}"
+        body = f"This PR fixes issue #{issue_number} using an AI-powered agent.\n\nCloses #{issue_number}"
 
         data = {
             "title": title,

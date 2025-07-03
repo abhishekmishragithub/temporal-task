@@ -17,14 +17,19 @@ dependencies = [
     "GitPython>=3.1.44",
     "requests>=2.30.0",
     "pydantic>=2.11.7",
+    "pytest>=8.4.1",
+    "google-genai>=1.24.0",
 ]
 
-[project.scripts]
-github-pr-bot-worker = "github_pr_bot.run_worker:main"
-github-pr-bot-start = "github_pr_bot.start_workflow:main"
-
 [project.optional-dependencies]
-dev = ["ruff>=0.1.0", "mypy>=1.0.0", "pytest>=7.0.0", "pytest-asyncio>=0.21.0"]
+dev = [
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "pre-commit>=3.6.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/abhishekmishragithub/temporal-task"
@@ -91,6 +96,22 @@ ignore_missing_imports = true
 
 
 [tool.pytest.ini_options]
-asyncio_mode = "auto"
 testpaths = ["tests"]
-python_files = ["test_*.py", "*_test.py"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+addopts = ["-v", "--cov=src", "--cov-report=term-missing", "--cov-report=html"]
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["*/tests/*", "*/test_*.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]

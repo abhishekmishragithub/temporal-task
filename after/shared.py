@@ -61,6 +61,15 @@ class CloneResult(BaseModel):
 
 
 @dataclass(frozen=True)
+class AIGeneratedFixResult:
+    """Result from the AI fix generation activity."""
+
+    file_to_edit: str
+    new_content: str
+    commit_message: str
+
+
+@dataclass(frozen=True)
 class CommitResult:
     """Result of committing changes."""
 

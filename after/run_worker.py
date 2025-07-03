@@ -68,7 +68,9 @@ async def main() -> None:
             workflows=[GitHubPRWorkflow],
             activities=[
                 activities.parse_issue_url,
+                activities.get_issue_details,
                 activities.clone_repo_and_create_branch,
+                activities.generate_fix_with_ai,
                 activities.apply_fix_and_commit,
                 activities.push_changes,
                 activities.create_pull_request,
