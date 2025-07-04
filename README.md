@@ -86,7 +86,7 @@ After running the workflow, the bot creates a pull request with the generated co
 
 ### Bonus ✨, try the interactive terminal UI!
 
-For a more integrated experience, a full featured terminal cli is available on a separate branch `[cli-ui]`(https://github.com/abhishekmishragithub/temporal-task/tree/cli-ui). It combines the worker, logger, and workflow starter into a single, textual interface.
+For a more integrated experience, a full featured terminal cli is available on a separate branch [cli-ui](https://github.com/abhishekmishragithub/temporal-task/tree/cli-ui). It combines the worker, logger, and workflow starter into a single, textual interface.
 
 ![Screenshot of the new Textual TUI for the bot](./assets/terminal_ui.png)
 
