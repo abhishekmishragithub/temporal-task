@@ -1,0 +1,68 @@
+Screen {
+    layout: vertical;
+}
+
+#main-container {
+    layout: horizontal;
+    height: 1fr;
+}
+
+#left-pane {
+    width: 40%;
+    min-width: 40;
+    padding: 1 2;
+    border-right: thick $background-lighten-2;
+}
+
+#right-pane {
+    width: 60%;
+}
+
+#title {
+    content-align: center top;
+    width: 100%;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+#subtitle {
+    color: $text-muted;
+    margin-bottom: 1;
+}
+
+#url-input {
+    margin-bottom: 1;
+}
+
+#status-grid {
+    margin-top: 2;
+    height: auto;
+    layout: grid;
+    grid-size: 2;
+    grid-columns: 10 1fr;
+    grid-rows: 1 1;
+}
+
+#ui-link {
+    width: 100%;
+    text-align: center;
+    margin-top: 2;
+    color: $text-muted;
+}
+
+#temporal-status-value,
+#worker-status-value {
+    text-style: bold;
+}
+
+/* Log {
+    padding: 0 1;
+} */
+
+RichLog {
+    padding: 0 1;
+}
+
+Button {
+    width: 100%;
+}
