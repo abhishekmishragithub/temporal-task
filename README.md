@@ -84,6 +84,26 @@ After running the workflow, the bot creates a pull request with the generated co
     -   Watch the real-time logs in your worker's terminal.
     -   View the complete workflow history and status in the Temporal UI at [http://localhost:8080](http://localhost:8080).
 
+### Bonus ✨, try the interactive terminal UI!
+
+For a more integrated experience, a full featured terminal cli is available on a separate branch [cli-ui](https://github.com/abhishekmishragithub/temporal-task/tree/cli-ui). It combines the worker, logger, and workflow starter into a single, textual interface.
+
+![Screenshot of the new Textual TUI for the bot](./assets/terminal_ui.png)
+
+To try it, simply checkout the `cli-ui` branch and run the unified app:
+
+1. Check out the TUI branch:
+
+```bash
+# Check out the TUI branch
+git checkout cli-ui
+```
+2. Follow the [Setup](#quick-start) instructions if you haven't already.
+3. Launch the Cli app:
+```bash
+uv run python after/app.py
+```
+
 ## Current Scope
 
 **Please note:** The current implementation is a proof-of-concept focused on a single, predetermined file.
